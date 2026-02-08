@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+progress_data.json
+.claude/

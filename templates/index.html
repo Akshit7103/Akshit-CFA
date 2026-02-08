@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CFA Level I Study Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ── Navbar ──────────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="logo">CFA<span> Planner</span></div>
+  <div class="nav-links">
+    <button data-section="dashboard" class="active">Dashboard</button>
+    <button data-section="checklists">Checklists</button>
+    <button data-section="planner">Planner</button>
+    <button data-section="scores">Score Tracker</button>
+  </div>
+</nav>
+
+<!-- ── Toast ───────────────────────────────────────────────────────── -->
+<div id="toast" class="toast"></div>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     DASHBOARD
+     ════════════════════════════════════════════════════════════════════ -->
+<div id="dashboard" class="section active">
+  <div class="container">
+
+    <!-- Hero -->
+    <div class="hero fade-up">
+      <h1>CFA Level I Study Planner</h1>
+    </div>
+
+    <!-- Countdown -->
+    <div class="countdown-bar fade-up">
+      <div class="countdown-item card">
+        <div class="cd-val" id="cd-days">--</div>
+        <div class="cd-label">Days</div>
+      </div>
+      <div class="countdown-item card">
+        <div class="cd-val" id="cd-hours">--</div>
+        <div class="cd-label">Hours</div>
+      </div>
+      <div class="countdown-item card">
+        <div class="cd-val" id="cd-mins">--</div>
+        <div class="cd-label">Minutes</div>
+      </div>
+      <div class="countdown-item card">
+        <div class="cd-val" id="cd-secs">--</div>
+        <div class="cd-label">Seconds</div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stat-grid fade-up">
+      <div class="stat-card card">
+        <div class="stat-value" id="stat-weeks">26</div>
+        <div class="stat-label">Study Weeks</div>
+      </div>
+      <div class="stat-card card">
+        <div class="stat-value" id="stat-exam">24 Aug 2026</div>
+        <div class="stat-label">Exam Date</div>
+      </div>
+    </div>
+
+    <!-- Overall progress ring -->
+    <div class="ring-container fade-up">
+      <div class="progress-ring-wrap">
+        <svg viewBox="0 0 200 200" width="200" height="200">
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#6366f1"/>
+              <stop offset="100%" style="stop-color:#34d399"/>
+            </linearGradient>
+          </defs>
+          <circle class="progress-ring-bg" cx="100" cy="100" r="85"/>
+          <circle id="progress-ring" class="progress-ring-fill" cx="100" cy="100" r="85"
+                  stroke-dasharray="534" stroke-dashoffset="534"/>
+        </svg>
+        <div class="ring-label">
+          <div class="pct" id="ring-pct">0%</div>
+          <div class="sub" id="ring-sub">0 / 0 items</div>
+        </div>
+      </div>
+      <div class="ring-legend">
+        <div class="ring-legend-item">
+          <div class="dot" style="background:#6366f1"></div>
+          <span>MM Videos: <strong id="legend-videos">0/87</strong></span>
+        </div>
+        <div class="ring-legend-item">
+          <div class="dot" style="background:#818cf8"></div>
+          <span>Kaplan Reads: <strong id="legend-kaplan">0/87</strong></span>
+        </div>
+        <div class="ring-legend-item">
+          <div class="dot" style="background:#34d399"></div>
+          <span>CFAI Questions: <strong id="legend-cfai">0/87</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Topic progress bars -->
+    <div class="card fade-up" style="margin-bottom:32px;">
+      <h3 style="margin-bottom:20px;font-weight:700;">Topic Progress</h3>
+      <div id="topic-progress-list" class="topic-progress-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     PLANNER
+     ════════════════════════════════════════════════════════════════════ -->
+<div id="planner" class="section">
+  <div class="container">
+    <h2 class="section-title">
+      <span class="icon">P</span> Study Planner
+    </h2>
+    <div id="planner-cards" class="planner-cards"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     CHECKLISTS
+     ════════════════════════════════════════════════════════════════════ -->
+<div id="checklists" class="section">
+  <div class="container">
+    <h2 class="section-title">
+      <span class="icon">&#10003;</span> Study Checklists
+    </h2>
+
+    <div class="checklist-tabs">
+      <button data-cat="videos" class="active">MM Videos</button>
+      <button data-cat="kaplan">Kaplan Reads</button>
+      <button data-cat="cfai">CFAI Questions</button>
+    </div>
+
+    <div id="checklist-content"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     SCORE TRACKER
+     ════════════════════════════════════════════════════════════════════ -->
+<div id="scores" class="section">
+  <div class="container">
+    <h2 class="section-title">
+      <span class="icon">S</span> Mock Exam &amp; Score Tracker
+    </h2>
+
+    <!-- Add score form -->
+    <div class="card" style="margin-bottom:24px;">
+      <div class="score-form">
+        <div class="field">
+          <label>Exam Name</label>
+          <input id="score-name" type="text" placeholder="e.g. CFA Mock 1">
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input id="score-date" type="date">
+        </div>
+        <div class="field">
+          <label>Score (%)</label>
+          <input id="score-value" type="number" min="0" max="100" placeholder="72">
+        </div>
+        <div class="field">
+          <label>Notes</label>
+          <input id="score-notes" type="text" placeholder="Optional notes">
+        </div>
+        <button class="btn btn-primary" onclick="addScore()">Add Score</button>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card" style="margin-bottom:24px;">
+      <div class="score-chart-container">
+        <canvas id="scoreChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card">
+      <table class="score-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Exam Name</th><th>Date</th><th>Score</th><th>Target</th><th>Pass?</th><th>Notes</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="score-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
