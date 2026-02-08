@@ -1,12 +1,45 @@
 from flask import Flask, render_template, jsonify, request
-import json
+from flask_sqlalchemy import SQLAlchemy
 import os
-from datetime import datetime
 
 app = Flask(__name__)
-DATA_FILE = os.path.join(os.path.dirname(__file__), "progress_data.json")
 
-# ── All CFA Level I study data ──────────────────────────────────────────
+# ── Database config ──────────────────────────────────────────────────
+database_url = os.environ.get("DATABASE_URL", "sqlite:///progress.db")
+# Render uses "postgres://" but SQLAlchemy needs "postgresql://"
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db = SQLAlchemy(app)
+
+
+# ── Models ───────────────────────────────────────────────────────────
+class ChecklistItem(db.Model):
+    __tablename__ = "checklist_items"
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(50), nullable=False)       # e.g. "2_5" or "0_prereq_0"
+    category = db.Column(db.String(10), nullable=False)   # "videos" | "kaplan" | "cfai"
+    done = db.Column(db.Boolean, default=False)
+    __table_args__ = (db.UniqueConstraint("key", "category"),)
+
+
+class Score(db.Model):
+    __tablename__ = "scores"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), default="")
+    date = db.Column(db.String(20), default="")
+    score = db.Column(db.Float, default=0)
+    notes = db.Column(db.String(500), default="")
+
+
+# Create tables on startup
+with app.app_context():
+    db.create_all()
+
+
+# ── All CFA Level I study data ──────────────────────────────────────
 TOPICS = [
     {
         "name": "Quantitative Methods",
@@ -150,67 +183,8 @@ TOPICS = [
     },
 ]
 
-WEEKLY_PLAN = [
-    {"wk": 1, "week_of": "09 Feb 2026", "topic": "Ethics & Professional Standards", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 2, "week_of": "16 Feb 2026", "topic": "Ethics & Professional Standards", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 3, "week_of": "23 Feb 2026", "topic": "Ethics & Professional Standards", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 4, "week_of": "02 Mar 2026", "topic": "Quantitative Methods", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 5, "week_of": "09 Mar 2026", "topic": "Quantitative Methods", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 6, "week_of": "16 Mar 2026", "topic": "Quantitative Methods", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 7, "week_of": "23 Mar 2026", "topic": "Economics", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 8, "week_of": "30 Mar 2026", "topic": "Economics", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 9, "week_of": "06 Apr 2026", "topic": "Economics", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 10, "week_of": "13 Apr 2026", "topic": "Financial Statement Analysis", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 11, "week_of": "20 Apr 2026", "topic": "Financial Statement Analysis", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 12, "week_of": "27 Apr 2026", "topic": "Financial Statement Analysis", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 13, "week_of": "04 May 2026", "topic": "Corporate Issuers", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 14, "week_of": "11 May 2026", "topic": "Corporate Issuers", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 15, "week_of": "18 May 2026", "topic": "Corporate Issuers", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 16, "week_of": "25 May 2026", "topic": "Equity Investments", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 17, "week_of": "01 Jun 2026", "topic": "Equity Investments", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 18, "week_of": "08 Jun 2026", "topic": "Equity Investments", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 19, "week_of": "15 Jun 2026", "topic": "Fixed Income", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 20, "week_of": "22 Jun 2026", "topic": "Fixed Income", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 21, "week_of": "29 Jun 2026", "topic": "Fixed Income", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 22, "week_of": "06 Jul 2026", "topic": "Derivatives", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 23, "week_of": "13 Jul 2026", "topic": "Derivatives", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 24, "week_of": "20 Jul 2026", "topic": "Derivatives", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 25, "week_of": "27 Jul 2026", "topic": "Alternative Investments", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-    {"wk": 26, "week_of": "03 Aug 2026", "topic": "Alternative Investments", "videos": "3 videos", "reading": "1 reading", "questions": "20 Qs", "hours": 21},
-]
 
-
-def default_data():
-    """Generate fresh default progress data."""
-    # Build reading index: topic_idx -> reading_idx -> {videos, kaplan, cfai}
-    checklists = {}
-    for ti, topic in enumerate(TOPICS):
-        for ri in range(len(topic["readings"])):
-            key = f"{ti}_{ri}"
-            checklists[key] = {"videos": False, "kaplan": False, "cfai": False}
-
-    return {
-        "checklists": checklists,
-        "weekly": {str(w["wk"]): {"hours_actual": 0, "notes": ""} for w in WEEKLY_PLAN},
-        "scores": [],
-    }
-
-
-def load_data():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    data = default_data()
-    save_data(data)
-    return data
-
-
-def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-
-# ── Routes ───────────────────────────────────────────────────────────────
+# ── Routes ───────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
@@ -222,62 +196,52 @@ def api_topics():
     return jsonify(TOPICS)
 
 
-@app.route("/api/weekly")
-def api_weekly():
-    return jsonify(WEEKLY_PLAN)
-
-
 @app.route("/api/progress")
 def api_progress():
-    data = load_data()
-    return jsonify(data)
+    items = ChecklistItem.query.all()
+    checklists = {}
+    for item in items:
+        if item.key not in checklists:
+            checklists[item.key] = {"videos": False, "kaplan": False, "cfai": False}
+        checklists[item.key][item.category] = item.done
+    return jsonify({"checklists": checklists})
 
 
 @app.route("/api/toggle", methods=["POST"])
 def api_toggle():
     body = request.json
-    key = body["key"]        # e.g. "2_5"
-    category = body["cat"]   # "videos" | "kaplan" | "cfai"
-    data = load_data()
-    if key not in data["checklists"]:
-        data["checklists"][key] = {"videos": False, "kaplan": False, "cfai": False}
-    data["checklists"][key][category] = not data["checklists"][key][category]
-    save_data(data)
-    return jsonify({"ok": True, "value": data["checklists"][key][category]})
-
-
-@app.route("/api/weekly/update", methods=["POST"])
-def api_weekly_update():
-    body = request.json
-    wk = str(body["wk"])
-    data = load_data()
-    if wk not in data["weekly"]:
-        data["weekly"][wk] = {"hours_actual": 0, "notes": ""}
-    if "hours_actual" in body:
-        data["weekly"][wk]["hours_actual"] = body["hours_actual"]
-    if "notes" in body:
-        data["weekly"][wk]["notes"] = body["notes"]
-    save_data(data)
-    return jsonify({"ok": True})
+    key = body["key"]
+    category = body["cat"]
+    item = ChecklistItem.query.filter_by(key=key, category=category).first()
+    if item is None:
+        item = ChecklistItem(key=key, category=category, done=True)
+        db.session.add(item)
+    else:
+        item.done = not item.done
+    db.session.commit()
+    return jsonify({"ok": True, "value": item.done})
 
 
 @app.route("/api/scores", methods=["GET"])
 def api_scores_get():
-    data = load_data()
-    return jsonify(data.get("scores", []))
+    scores = Score.query.order_by(Score.id).all()
+    return jsonify([
+        {"name": s.name, "date": s.date, "score": s.score, "notes": s.notes}
+        for s in scores
+    ])
 
 
 @app.route("/api/scores", methods=["POST"])
 def api_scores_post():
     body = request.json
-    data = load_data()
-    data["scores"].append({
-        "name": body.get("name", ""),
-        "date": body.get("date", ""),
-        "score": body.get("score", 0),
-        "notes": body.get("notes", ""),
-    })
-    save_data(data)
+    score = Score(
+        name=body.get("name", ""),
+        date=body.get("date", ""),
+        score=body.get("score", 0),
+        notes=body.get("notes", ""),
+    )
+    db.session.add(score)
+    db.session.commit()
     return jsonify({"ok": True})
 
 
@@ -285,17 +249,10 @@ def api_scores_post():
 def api_scores_delete():
     body = request.json
     idx = body["index"]
-    data = load_data()
-    if 0 <= idx < len(data["scores"]):
-        data["scores"].pop(idx)
-    save_data(data)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/reset", methods=["POST"])
-def api_reset():
-    data = default_data()
-    save_data(data)
+    scores = Score.query.order_by(Score.id).all()
+    if 0 <= idx < len(scores):
+        db.session.delete(scores[idx])
+        db.session.commit()
     return jsonify({"ok": True})
 
 

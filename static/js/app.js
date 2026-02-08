@@ -1,6 +1,5 @@
 // ── State ────────────────────────────────────────────────────────────
 let TOPICS = [];
-let WEEKLY = [];
 let PROGRESS = {};
 let SCORES = [];
 let activeChecklistCat = "videos";
@@ -14,14 +13,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function loadAll() {
-  const [topicsRes, weeklyRes, progressRes, scoresRes] = await Promise.all([
+  const [topicsRes, progressRes, scoresRes] = await Promise.all([
     fetch("/api/topics").then(r => r.json()),
-    fetch("/api/weekly").then(r => r.json()),
     fetch("/api/progress").then(r => r.json()),
     fetch("/api/scores").then(r => r.json()),
   ]);
   TOPICS = topicsRes;
-  WEEKLY = weeklyRes;
   PROGRESS = progressRes;
   SCORES = scoresRes;
 }
