@@ -59,10 +59,6 @@ function renderDashboard() {
   const totalAll = totalReadings * 3;
   const overallPct = totalAll > 0 ? Math.round((totalDone / totalAll) * 100) : 0;
 
-  // Stats
-  document.getElementById("stat-weeks").textContent = "26";
-  document.getElementById("stat-exam").textContent = "24 Aug 2026";
-
   // Ring
   const circumference = 2 * Math.PI * 85;
   const offset = circumference - (overallPct / 100) * circumference;
@@ -202,28 +198,13 @@ function formatPlanDate(isoStr) {
 
 // ── Countdown ────────────────────────────────────────────────────────
 function startCountdown() {
-  const examDate = new Date("2026-08-24T09:00:00");
-  function update() {
-    const now = new Date();
-    const diff = examDate - now;
-    if (diff <= 0) {
-      document.getElementById("cd-days").textContent = "0";
-      document.getElementById("cd-hours").textContent = "0";
-      document.getElementById("cd-mins").textContent = "0";
-      document.getElementById("cd-secs").textContent = "0";
-      return;
-    }
-    const days = Math.floor(diff / 86400000);
-    const hours = Math.floor((diff % 86400000) / 3600000);
-    const mins = Math.floor((diff % 3600000) / 60000);
-    const secs = Math.floor((diff % 60000) / 1000);
-    document.getElementById("cd-days").textContent = days;
-    document.getElementById("cd-hours").textContent = hours;
-    document.getElementById("cd-mins").textContent = mins;
-    document.getElementById("cd-secs").textContent = secs;
-  }
-  update();
-  setInterval(update, 1000);
+  const examDate = new Date("2026-08-24T00:00:00");
+  const now = new Date();
+  const diff = examDate - now;
+  const days = Math.max(0, Math.ceil(diff / 86400000));
+  const weeks = Math.floor(days / 7);
+  document.getElementById("cd-days").textContent = days;
+  document.getElementById("cd-weeks").textContent = weeks;
 }
 
 // ── Weekly Planner ───────────────────────────────────────────────────
