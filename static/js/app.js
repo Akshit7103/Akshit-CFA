@@ -112,18 +112,35 @@ function renderDashboard() {
 
 // ── Planner ──────────────────────────────────────────────────────────
 const PLAN_SCHEDULE = [
-  { num: 1,  name: "Quantitative Methods",         start: "2026-02-08", end: "2026-02-23", days: 16 },
-  { num: 2,  name: "Economics",                     start: "2026-02-24", end: "2026-03-10", days: 15 },
-  { num: 3,  name: "Corporate Issuers",             start: "2026-03-11", end: "2026-03-22", days: 12 },
-  { num: 4,  name: "Financial Statement Analysis",  start: "2026-03-23", end: "2026-04-16", days: 25 },
-  { num: 5,  name: "Equity Investments",            start: "2026-04-17", end: "2026-05-05", days: 19 },
-  { num: 6,  name: "Fixed Income",                  start: "2026-05-06", end: "2026-06-01", days: 27 },
-  { num: 7,  name: "Derivatives",                   start: "2026-06-02", end: "2026-06-12", days: 11 },
-  { num: 8,  name: "Alternative Investments",       start: "2026-06-13", end: "2026-06-23", days: 11 },
-  { num: 9,  name: "Portfolio Management",          start: "2026-06-24", end: "2026-07-07", days: 14 },
-  { num: 10, name: "Ethics",                        start: "2026-07-08", end: "2026-07-22", days: 15 },
-  { num: null, name: "Review",                      start: "2026-07-23", end: "2026-08-22", days: 30 },
+  { num: 1,  name: "Quantitative Methods",         start: "2026-02-08", end: "2026-02-23", days: 16, topicIdx: 0 },
+  { num: 2,  name: "Economics",                     start: "2026-02-24", end: "2026-03-10", days: 15, topicIdx: 1 },
+  { num: 3,  name: "Corporate Issuers",             start: "2026-03-11", end: "2026-03-22", days: 12, topicIdx: 2 },
+  { num: 4,  name: "Financial Statement Analysis",  start: "2026-03-23", end: "2026-04-16", days: 25, topicIdx: 3 },
+  { num: 5,  name: "Equity Investments",            start: "2026-04-17", end: "2026-05-05", days: 19, topicIdx: 4 },
+  { num: 6,  name: "Fixed Income",                  start: "2026-05-06", end: "2026-06-01", days: 27, topicIdx: 5 },
+  { num: 7,  name: "Derivatives",                   start: "2026-06-02", end: "2026-06-12", days: 11, topicIdx: 6 },
+  { num: 8,  name: "Alternative Investments",       start: "2026-06-13", end: "2026-06-23", days: 11, topicIdx: 7 },
+  { num: 9,  name: "Portfolio Management",          start: "2026-06-24", end: "2026-07-07", days: 14, topicIdx: 8 },
+  { num: 10, name: "Ethics",                        start: "2026-07-08", end: "2026-07-22", days: 15, topicIdx: 9 },
+  { num: null, name: "Review",                      start: "2026-07-23", end: "2026-08-22", days: 30, topicIdx: null },
 ];
+
+function getTopicProgress(topicIdx) {
+  if (topicIdx === null) return null;
+  const cl = PROGRESS.checklists || {};
+  const topic = TOPICS[topicIdx];
+  if (!topic) return null;
+  const total = topic.readings.length;
+  let videos = 0, kaplan = 0, cfai = 0;
+  topic.readings.forEach((_, ri) => {
+    const key = `${topicIdx}_${ri}`;
+    const c = cl[key] || {};
+    if (c.videos) videos++;
+    if (c.kaplan) kaplan++;
+    if (c.cfai) cfai++;
+  });
+  return { total, videos, kaplan, cfai };
+}
 
 function renderPlanner() {
   const container = document.getElementById("planner-cards");
@@ -134,9 +151,16 @@ function renderPlanner() {
   PLAN_SCHEDULE.forEach((item, i) => {
     const startDate = new Date(item.start + "T00:00:00");
     const endDate = new Date(item.end + "T23:59:59");
+    const endDateClean = new Date(item.end + "T00:00:00");
     const isReview = item.num === null;
     const isCurrent = now >= startDate && now <= endDate;
     const isCompleted = now > endDate;
+
+    // Days remaining
+    let daysRemaining = 0;
+    if (isCompleted) daysRemaining = 0;
+    else if (isCurrent) daysRemaining = Math.ceil((endDateClean - now) / 86400000);
+    else daysRemaining = item.days;
 
     // Time progress within the period
     let timePct = 0;
@@ -155,6 +179,44 @@ function renderPlanner() {
     const cardClass = isReview ? "review-card" : "topic-card";
     const highlightClass = isCurrent ? "current-topic" : (isCompleted ? "completed-topic" : "");
 
+    // Days remaining display
+    let daysRemainingHTML = "";
+    if (isCompleted) {
+      daysRemainingHTML = `<span style="color:var(--green);font-weight:700;">Done</span>`;
+    } else if (isCurrent) {
+      daysRemainingHTML = `<span class="planner-days-remaining">${daysRemaining} days left</span>`;
+    } else {
+      daysRemainingHTML = `<span style="color:var(--text3);">${item.days} days</span>`;
+    }
+
+    // Checklist progress
+    const prog = getTopicProgress(item.topicIdx);
+    let progressHTML = "";
+    if (prog) {
+      const vPct = prog.total > 0 ? Math.round((prog.videos / prog.total) * 100) : 0;
+      const kPct = prog.total > 0 ? Math.round((prog.kaplan / prog.total) * 100) : 0;
+      const cPct = prog.total > 0 ? Math.round((prog.cfai / prog.total) * 100) : 0;
+      progressHTML = `
+        <div class="planner-checklist-progress">
+          <div class="planner-prog-row">
+            <div class="planner-prog-label">MM Videos</div>
+            <div class="planner-prog-track"><div class="planner-prog-fill videos" style="width:${vPct}%"></div></div>
+            <div class="planner-prog-count">${prog.videos}/${prog.total}</div>
+          </div>
+          <div class="planner-prog-row">
+            <div class="planner-prog-label">Kaplan Read</div>
+            <div class="planner-prog-track"><div class="planner-prog-fill kaplan" style="width:${kPct}%"></div></div>
+            <div class="planner-prog-count">${prog.kaplan}/${prog.total}</div>
+          </div>
+          <div class="planner-prog-row">
+            <div class="planner-prog-label">CFAI Questions</div>
+            <div class="planner-prog-track"><div class="planner-prog-fill cfai" style="width:${cPct}%"></div></div>
+            <div class="planner-prog-count">${prog.cfai}/${prog.total}</div>
+          </div>
+        </div>
+      `;
+    }
+
     const card = document.createElement("div");
     card.className = `planner-card ${cardClass} ${highlightClass} fade-up`;
     card.style.animationDelay = `${i * 0.06}s`;
@@ -169,8 +231,8 @@ function renderPlanner() {
           <div class="planner-value">${formatPlanDate(item.start)}</div>
         </div>
         <div>
-          <div class="planner-label">Study Length</div>
-          <div class="planner-value">${item.days} days</div>
+          <div class="planner-label">Days Remaining</div>
+          <div class="planner-value">${daysRemainingHTML}</div>
         </div>
         <div>
           <div class="planner-label">End</div>
@@ -184,6 +246,7 @@ function renderPlanner() {
       <div class="planner-time-bar">
         <div class="planner-time-fill" style="width:${timePct}%"></div>
       </div>
+      ${progressHTML}
     `;
     container.appendChild(card);
   });

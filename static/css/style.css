@@ -410,8 +410,56 @@ h2.section-title .icon {
 .planner-status-label.active { color: var(--green); }
 .planner-status-label.done { color: var(--accent2); }
 
+/* Checklist progress inside planner card */
+.planner-checklist-progress {
+  margin-top: 20px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.planner-prog-row {
+  display: flex; align-items: center; gap: 12px;
+}
+.planner-prog-label {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--text3);
+  font-weight: 600;
+  width: 110px;
+  flex-shrink: 0;
+}
+.planner-prog-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.planner-prog-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width .8s ease;
+}
+.planner-prog-fill.videos { background: var(--accent); }
+.planner-prog-fill.kaplan { background: var(--accent2); }
+.planner-prog-fill.cfai { background: var(--green); }
+.planner-prog-count {
+  font-size: .75rem;
+  color: var(--text2);
+  font-weight: 600;
+  width: 50px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.planner-days-remaining {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--amber);
+}
+
 @media (max-width: 600px) {
   .planner-card-body { grid-template-columns: 1fr; gap: 6px; }
+  .planner-prog-label { width: 80px; font-size: .65rem; }
 }
 
 /* ── Checklists ──────────────────────────────────────────────────── */
