@@ -351,31 +351,6 @@ h2.section-title .icon {
   font-size: 1.2rem;
   font-weight: 700;
 }
-.planner-header-controls {
-  display: flex; align-items: center; gap: 10px;
-}
-.planner-reorder-group {
-  display: flex; flex-direction: column; gap: 2px;
-}
-.planner-reorder-btn {
-  background: rgba(99,102,241,.12);
-  border: 1px solid rgba(99,102,241,.2);
-  color: var(--accent2);
-  width: 28px; height: 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: .6rem;
-  display: flex; align-items: center; justify-content: center;
-  transition: all .2s;
-  padding: 0;
-}
-.planner-reorder-btn:hover {
-  background: rgba(99,102,241,.25);
-  border-color: var(--accent);
-}
-.planner-reorder-btn.disabled {
-  opacity: 0; pointer-events: none;
-}
 .planner-card-badge {
   width: 36px; height: 36px;
   display: flex; align-items: center; justify-content: center;
@@ -389,32 +364,6 @@ h2.section-title .icon {
   background: rgba(251,191,36,.15);
   border-color: rgba(251,191,36,.3);
   color: var(--amber);
-}
-
-/* Planner inline edit inputs */
-.planner-date-input,
-.planner-days-input {
-  background: rgba(99,102,241,.08);
-  border: 1px solid rgba(99,102,241,.25);
-  border-radius: 8px;
-  color: var(--text);
-  padding: 6px 10px;
-  font-size: .85rem;
-  font-weight: 600;
-  width: 100%;
-  max-width: 160px;
-  transition: border-color .2s;
-}
-.planner-days-input { max-width: 80px; text-align: center; }
-.planner-date-input:focus,
-.planner-days-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow);
-}
-/* Fix date input calendar icon color for dark theme */
-.planner-date-input::-webkit-calendar-picker-indicator {
-  filter: invert(1);
 }
 
 .planner-card-body {
