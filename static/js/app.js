@@ -2,6 +2,7 @@
 let TOPICS = [];
 let PROGRESS = {};
 let SCORES = [];
+let PLANNER = [];
 let activeChecklistCat = "videos";
 
 // ── Init ─────────────────────────────────────────────────────────────
@@ -13,14 +14,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function loadAll() {
-  const [topicsRes, progressRes, scoresRes] = await Promise.all([
+  const [topicsRes, progressRes, scoresRes, plannerRes] = await Promise.all([
     fetch("/api/topics").then(r => r.json()),
     fetch("/api/progress").then(r => r.json()),
     fetch("/api/scores").then(r => r.json()),
+    fetch("/api/planner").then(r => r.json()),
   ]);
   TOPICS = topicsRes;
   PROGRESS = progressRes;
   SCORES = scoresRes;
+  PLANNER = plannerRes;
 }
 
 // ── Navigation ───────────────────────────────────────────────────────
@@ -107,26 +110,11 @@ function renderDashboard() {
     topicList.appendChild(row);
     globalIdx++;
   });
-
 }
 
 // ── Planner ──────────────────────────────────────────────────────────
-const PLAN_SCHEDULE = [
-  { num: 1,  name: "Quantitative Methods",         start: "2026-02-08", end: "2026-02-23", days: 16, topicIdx: 0 },
-  { num: 2,  name: "Economics",                     start: "2026-02-24", end: "2026-03-10", days: 15, topicIdx: 1 },
-  { num: 3,  name: "Corporate Issuers",             start: "2026-03-11", end: "2026-03-22", days: 12, topicIdx: 2 },
-  { num: 4,  name: "Financial Statement Analysis",  start: "2026-03-23", end: "2026-04-16", days: 25, topicIdx: 3 },
-  { num: 5,  name: "Equity Investments",            start: "2026-04-17", end: "2026-05-05", days: 19, topicIdx: 4 },
-  { num: 6,  name: "Fixed Income",                  start: "2026-05-06", end: "2026-06-01", days: 27, topicIdx: 5 },
-  { num: 7,  name: "Derivatives",                   start: "2026-06-02", end: "2026-06-12", days: 11, topicIdx: 6 },
-  { num: 8,  name: "Alternative Investments",       start: "2026-06-13", end: "2026-06-23", days: 11, topicIdx: 7 },
-  { num: 9,  name: "Portfolio Management",          start: "2026-06-24", end: "2026-07-07", days: 14, topicIdx: 8 },
-  { num: 10, name: "Ethics",                        start: "2026-07-08", end: "2026-07-22", days: 15, topicIdx: 9 },
-  { num: null, name: "Review",                      start: "2026-07-23", end: "2026-08-22", days: 30, topicIdx: null },
-];
-
 function getTopicProgress(topicIdx) {
-  if (topicIdx === null) return null;
+  if (topicIdx === null || topicIdx === undefined) return null;
   const cl = PROGRESS.checklists || {};
   const topic = TOPICS[topicIdx];
   if (!topic) return null;
@@ -148,11 +136,11 @@ function renderPlanner() {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
-  PLAN_SCHEDULE.forEach((item, i) => {
+  PLANNER.forEach((item, i) => {
     const startDate = new Date(item.start + "T00:00:00");
     const endDate = new Date(item.end + "T23:59:59");
     const endDateClean = new Date(item.end + "T00:00:00");
-    const isReview = item.num === null;
+    const isReview = item.topic_idx === null;
     const isCurrent = now >= startDate && now <= endDate;
     const isCompleted = now > endDate;
 
@@ -190,7 +178,7 @@ function renderPlanner() {
     }
 
     // Checklist progress
-    const prog = getTopicProgress(item.topicIdx);
+    const prog = getTopicProgress(item.topic_idx);
     let progressHTML = "";
     if (prog) {
       const vPct = prog.total > 0 ? Math.round((prog.videos / prog.total) * 100) : 0;
@@ -217,30 +205,45 @@ function renderPlanner() {
       `;
     }
 
+    // Reorder buttons
+    const upBtn = i > 0 ? `<button class="planner-reorder-btn" onclick="reorderPlanner(${item.id},'up')" title="Move up">&#9650;</button>` : `<span class="planner-reorder-btn disabled"></span>`;
+    const downBtn = i < PLANNER.length - 1 ? `<button class="planner-reorder-btn" onclick="reorderPlanner(${item.id},'down')" title="Move down">&#9660;</button>` : `<span class="planner-reorder-btn disabled"></span>`;
+
     const card = document.createElement("div");
     card.className = `planner-card ${cardClass} ${highlightClass} fade-up`;
     card.style.animationDelay = `${i * 0.06}s`;
     card.innerHTML = `
       <div class="planner-card-header">
         <div class="planner-card-title">${item.name}</div>
-        ${item.num !== null ? `<div class="planner-card-badge">${item.num}</div>` : `<div class="planner-card-badge">R</div>`}
+        <div class="planner-header-controls">
+          <div class="planner-reorder-group">${upBtn}${downBtn}</div>
+          <div class="planner-card-badge">${item.topic_idx !== null ? i + 1 : "R"}</div>
+        </div>
       </div>
       <div class="planner-card-body">
         <div>
           <div class="planner-label">Start</div>
-          <div class="planner-value">${formatPlanDate(item.start)}</div>
+          <div class="planner-value">
+            ${i === 0
+              ? `<input type="date" class="planner-date-input" value="${item.start}" onchange="updatePlannerStart(${item.id}, this.value)">`
+              : formatPlanDate(item.start)
+            }
+          </div>
         </div>
         <div>
-          <div class="planner-label">Days Remaining</div>
-          <div class="planner-value">${daysRemainingHTML}</div>
+          <div class="planner-label">Study Days</div>
+          <div class="planner-value">
+            <input type="number" class="planner-days-input" value="${item.days}" min="1" max="120"
+                   onchange="updatePlannerDays(${item.id}, this.value)">
+          </div>
         </div>
         <div>
           <div class="planner-label">End</div>
           <div class="planner-value">${formatPlanDate(item.end)}</div>
         </div>
         <div>
-          <div class="planner-label">Status</div>
-          <div class="planner-status-label ${statusClass}">${statusText}</div>
+          <div class="planner-label">Days Remaining</div>
+          <div class="planner-value">${daysRemainingHTML}</div>
         </div>
       </div>
       <div class="planner-time-bar">
@@ -250,6 +253,42 @@ function renderPlanner() {
     `;
     container.appendChild(card);
   });
+}
+
+async function updatePlannerDays(id, value) {
+  const days = parseInt(value);
+  if (!days || days < 1) return;
+  const res = await fetch("/api/planner/update", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, days }),
+  });
+  PLANNER = await res.json();
+  renderPlanner();
+  showToast("Schedule updated!");
+}
+
+async function updatePlannerStart(id, value) {
+  if (!value) return;
+  const res = await fetch("/api/planner/update", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, start: value }),
+  });
+  PLANNER = await res.json();
+  renderPlanner();
+  showToast("Start date updated!");
+}
+
+async function reorderPlanner(id, direction) {
+  const res = await fetch("/api/planner/reorder", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, direction }),
+  });
+  PLANNER = await res.json();
+  renderPlanner();
+  showToast("Order updated!");
 }
 
 function formatPlanDate(isoStr) {
@@ -270,78 +309,8 @@ function startCountdown() {
   document.getElementById("cd-weeks").textContent = weeks;
 }
 
-// ── Weekly Planner ───────────────────────────────────────────────────
-function renderWeekly() {
-  const container = document.getElementById("weekly-cards");
-  container.innerHTML = "";
-  const now = new Date();
-
-  WEEKLY.forEach(w => {
-    const weekDate = parseWeekDate(w.week_of);
-    const weekEnd = new Date(weekDate);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    const isCurrent = now >= weekDate && now <= weekEnd;
-
-    const saved = (PROGRESS.weekly || {})[String(w.wk)] || {};
-    const card = document.createElement("div");
-    card.className = `week-card card ${isCurrent ? "current-week" : ""}`;
-    card.innerHTML = `
-      <div class="wk-num">W${w.wk}</div>
-      <div class="wk-date">${w.week_of}</div>
-      <div class="wk-topic">${w.topic}</div>
-      <div class="wk-target">${w.videos}</div>
-      <div class="wk-target">${w.reading}</div>
-      <div class="wk-target">${w.questions}</div>
-      <input class="wk-hours-input" type="number" min="0" max="100"
-             value="${saved.hours_actual || ''}"
-             placeholder="0"
-             data-wk="${w.wk}" data-field="hours_actual">
-      <input class="wk-notes-input" type="text"
-             value="${saved.notes || ''}"
-             placeholder="Notes..."
-             data-wk="${w.wk}" data-field="notes">
-      <div></div>
-    `;
-    container.appendChild(card);
-
-    if (isCurrent) {
-      setTimeout(() => card.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
-    }
-  });
-
-  // Debounced save
-  container.addEventListener("input", debounce(async (e) => {
-    const input = e.target;
-    if (!input.dataset.wk) return;
-    const body = { wk: parseInt(input.dataset.wk) };
-    if (input.dataset.field === "hours_actual") {
-      body.hours_actual = parseFloat(input.value) || 0;
-    } else {
-      body.notes = input.value;
-    }
-    await fetch("/api/weekly/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    // Update local state
-    const wk = String(body.wk);
-    if (!PROGRESS.weekly) PROGRESS.weekly = {};
-    if (!PROGRESS.weekly[wk]) PROGRESS.weekly[wk] = { hours_actual: 0, notes: "" };
-    if (body.hours_actual !== undefined) PROGRESS.weekly[wk].hours_actual = body.hours_actual;
-    if (body.notes !== undefined) PROGRESS.weekly[wk].notes = body.notes;
-    showToast("Saved!");
-  }, 600));
-}
-
-function parseWeekDate(str) {
-  // "09 Feb 2026"
-  return new Date(str);
-}
-
 // ── Checklists ───────────────────────────────────────────────────────
 function renderChecklists() {
-  // Tab buttons
   document.querySelectorAll(".checklist-tabs button").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.cat === activeChecklistCat);
     btn.onclick = () => {
@@ -359,7 +328,6 @@ function renderChecklists() {
     const section = document.createElement("div");
     section.className = "topic-checklist";
 
-    // Build list of items: prereqs (MM only) + readings
     const prereqs = (activeChecklistCat === "videos" && topic.mm_prereqs) ? topic.mm_prereqs : [];
     const totalItems = prereqs.length + topic.readings.length;
 
@@ -380,12 +348,10 @@ function renderChecklists() {
       </div>
     `;
 
-    // Render prereqs first (MM Videos only)
     prereqs.forEach((prereq, pi) => {
       globalNum++;
       const key = `${ti}_prereq_${pi}`;
       const isDone = (cl[key] || {})[activeChecklistCat] || false;
-
       const item = document.createElement("div");
       item.className = `check-item ${isDone ? "done" : ""}`;
       item.innerHTML = `
@@ -393,30 +359,14 @@ function renderChecklists() {
         <div class="check-name" style="color:var(--amber);font-weight:600;">${prereq}</div>
         <div class="check-box ${isDone ? "checked" : ""}" data-key="${key}" data-cat="${activeChecklistCat}"></div>
       `;
-      item.querySelector(".check-box").addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const box = e.currentTarget;
-        box.classList.add("check-pop");
-        const res = await fetch("/api/toggle", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: box.dataset.key, cat: box.dataset.cat }),
-        });
-        const data = await res.json();
-        if (!PROGRESS.checklists[key]) PROGRESS.checklists[key] = { videos: false, kaplan: false, cfai: false };
-        PROGRESS.checklists[key][activeChecklistCat] = data.value;
-        renderChecklists();
-        showToast(data.value ? "Marked complete!" : "Unmarked");
-      });
+      item.querySelector(".check-box").addEventListener("click", handleCheckClick(key));
       section.appendChild(item);
     });
 
-    // Render regular readings
     topic.readings.forEach((reading, ri) => {
       globalNum++;
       const key = `${ti}_${ri}`;
       const isDone = (cl[key] || {})[activeChecklistCat] || false;
-
       const item = document.createElement("div");
       item.className = `check-item ${isDone ? "done" : ""}`;
       item.innerHTML = `
@@ -424,26 +374,31 @@ function renderChecklists() {
         <div class="check-name">${reading}</div>
         <div class="check-box ${isDone ? "checked" : ""}" data-key="${key}" data-cat="${activeChecklistCat}"></div>
       `;
-      item.querySelector(".check-box").addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const box = e.currentTarget;
-        box.classList.add("check-pop");
-        const res = await fetch("/api/toggle", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: box.dataset.key, cat: box.dataset.cat }),
-        });
-        const data = await res.json();
-        if (!PROGRESS.checklists[key]) PROGRESS.checklists[key] = { videos: false, kaplan: false, cfai: false };
-        PROGRESS.checklists[key][activeChecklistCat] = data.value;
-        renderChecklists();
-        showToast(data.value ? "Marked complete!" : "Unmarked");
-      });
+      item.querySelector(".check-box").addEventListener("click", handleCheckClick(key));
       section.appendChild(item);
     });
 
     container.appendChild(section);
   });
+}
+
+function handleCheckClick(key) {
+  return async (e) => {
+    e.stopPropagation();
+    const box = e.currentTarget;
+    box.classList.add("check-pop");
+    const res = await fetch("/api/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: box.dataset.key, cat: box.dataset.cat }),
+    });
+    const data = await res.json();
+    if (!PROGRESS.checklists) PROGRESS.checklists = {};
+    if (!PROGRESS.checklists[key]) PROGRESS.checklists[key] = { videos: false, kaplan: false, cfai: false };
+    PROGRESS.checklists[key][activeChecklistCat] = data.value;
+    renderChecklists();
+    showToast(data.value ? "Marked complete!" : "Unmarked");
+  };
 }
 
 // ── Score Tracker ────────────────────────────────────────────────────
@@ -465,7 +420,7 @@ function renderScoreTable() {
       <td>${s.name}</td>
       <td>${s.date}</td>
       <td class="${pass ? "score-pass" : "score-fail"}">${s.score}%</td>
-      <td>${pass ? "70%" : "70%"}</td>
+      <td>70%</td>
       <td class="${pass ? "score-pass" : "score-fail"}">${pass ? "Pass" : "Fail"}</td>
       <td>${s.notes || ""}</td>
       <td><button class="btn btn-danger" onclick="deleteScore(${i})">Del</button></td>
@@ -555,7 +510,6 @@ async function addScore() {
     body: JSON.stringify({ name, date, score, notes }),
   });
   SCORES.push({ name, date, score, notes });
-  // Clear form
   document.getElementById("score-name").value = "";
   document.getElementById("score-date").value = "";
   document.getElementById("score-value").value = "";
@@ -575,37 +529,7 @@ async function deleteScore(idx) {
   showToast("Score removed");
 }
 
-// ── Quotes ───────────────────────────────────────────────────────────
-const QUOTES = [
-  { text: "The best investment you can make is in yourself.", author: "Warren Buffett" },
-  { text: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin" },
-  { text: "Risk comes from not knowing what you are doing.", author: "Warren Buffett" },
-  { text: "The stock market is a device for transferring money from the impatient to the patient.", author: "Warren Buffett" },
-  { text: "In investing, what is comfortable is rarely profitable.", author: "Robert Arnott" },
-  { text: "The four most dangerous words in investing are: This time it's different.", author: "Sir John Templeton" },
-  { text: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill" },
-  { text: "It's not whether you're right or wrong, but how much money you make when you're right.", author: "George Soros" },
-  { text: "The individual investor should act consistently as an investor and not as a speculator.", author: "Ben Graham" },
-  { text: "Do not save what is left after spending, but spend what is left after saving.", author: "Warren Buffett" },
-];
-
-function renderQuote() {
-  const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-  const el = document.getElementById("quote-text");
-  const cite = document.getElementById("quote-author");
-  if (el) el.textContent = `"${q.text}"`;
-  if (cite) cite.textContent = `\u2014 ${q.author}`;
-}
-
 // ── Utilities ────────────────────────────────────────────────────────
-function debounce(fn, ms) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), ms);
-  };
-}
-
 function showToast(msg) {
   const toast = document.getElementById("toast");
   toast.textContent = msg;
